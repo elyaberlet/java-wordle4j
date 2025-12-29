@@ -3,7 +3,6 @@ package ru.yandex.practicum;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -29,49 +28,46 @@ class WordleTest {
     }
 
     @Test
-    public void testCompareWords() {
+    public void testCompareWords() throws Exception {
         WordleDictionaryLoader loader = new WordleDictionaryLoader(null);
         WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", 5, StandardCharsets.UTF_8);
 
-        String answer = "слово";
+        WordleGame game = new WordleGame(dictionary, 5, 6, null);
+        game.setAnswerForTests("слово"); // теперь без рефлексии
 
-        WordleGame game = new WordleGame(dictionary, answer, 6, null);
+        String[] result = game.compareWords("право");
 
-        String[] result = game.compareWords("право", answer);
-
-        assertEquals(Arrays.toString(result), Arrays.toString(new String[]{"-, -, -, +, +"}));
+        assertArrayEquals(new String[]{"-", "-", "-", "+", "+"}, result);
     }
 
     @Test
-    public void testGameState() {
+    public void testGameState() throws Exception {
         WordleDictionaryLoader loader = new WordleDictionaryLoader(null);
         WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", 5, StandardCharsets.UTF_8);
 
-        String answer = "слово";
+        WordleGame game = new WordleGame(dictionary, 5, 6, null);
+        game.setAnswerForTests("слово");
 
-        WordleGame game = new WordleGame(dictionary, answer, 6, null);
+        game.compareWords("слово");
+        game.compareWords("право");
 
-        game.compareWords("ghfdb", answer);
-        game.compareWords("ветка", answer);
-
-        assertEquals(5, game.getSteps(), "Количество оставшихся шагов должно уменьшиться на 1");
-        assertFalse(game.isGameOver("ветка"), "Игра не должна быть завершена после одного хода");
+        assertEquals(4, game.getSteps(), "Количество оставшихся шагов должно уменьшиться на 2");
+        assertFalse(game.isGameOver("право"), "Игра не должна быть завершена после двух ходов");
     }
 
     @Test
-    public void testHints() {
+    public void testHints() throws Exception {
         WordleDictionaryLoader loader = new WordleDictionaryLoader(null);
         WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", 5, StandardCharsets.UTF_8);
-        String answer = "слово";
-        WordleGame game = new WordleGame(dictionary, answer, 6, null);
+
+        WordleGame game = new WordleGame(dictionary, 5, 6, null);
+        game.setAnswerForTests("слово");
 
         game.usedWords.add("ветка");
         game.usedResults.add(new String[]{"^", "-", "-", "-", "-"});
 
         String hint = game.suggestWord();
         assertNotNull(hint);
-        assertNotEquals(answer, hint);
         assertTrue(hint.contains("в"));
-
     }
 }

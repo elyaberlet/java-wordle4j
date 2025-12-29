@@ -3,84 +3,77 @@ package ru.yandex.practicum;
 import java.io.PrintWriter;
 import java.util.*;
 
-/*
-в этом классе хранится словарь и состояние игры
-    текущий шаг
-    всё что пользователь вводил
-    правильный ответ
-
-в этом классе нужны методы, которые
-    проанализируют совпадение слова с ответом
-    предложат слово-подсказку с учётом всего, что вводил пользователь ранее
-
-не забудьте про специальные типы исключений для игровых и неигровых ошибок
- */
 public class WordleGame {
 
     private String answer;
-
     private int steps;
-
-    private WordleDictionary dictionary;
+    private final int wordLength;
+    private final WordleDictionary dictionary;
 
     protected List<String> usedWords;
-
     protected List<String[]> usedResults;
 
-    public WordleGame(WordleDictionary dictionary, String answer, int steps, PrintWriter logWriter) {
+    public WordleGame(WordleDictionary dictionary, int wordLength, int steps, PrintWriter logWriter) {
         this.dictionary = dictionary;
-        this.answer = answer;
+        this.wordLength = wordLength;
+        this.answer = dictionary.getRandomWord();
         this.steps = steps;
         this.usedWords = new ArrayList<>();
         this.usedResults = new ArrayList<>();
+
+        if (logWriter != null) {
+            logWriter.println("Загаданное слово: " + answer);
+        }
     }
 
-
-    public void validate(String userWord) throws WordNotFoundInDictionary {
+    public void validate(String userWord)
+            throws WordNotFoundInDictionary, WrongWordException, GameNoSuchWordException {
         if (userWord == null || userWord.isEmpty()) {
-            throw new WordNotFoundInDictionary("Слово не может быть пустым");
+            throw new WrongWordException("Слово не может быть пустым");
         }
 
-        if (userWord.length() != 5) {
-            throw new WordNotFoundInDictionary("Слово должно состоять из 5 букв");
+        if (userWord.length() != wordLength) {
+            throw new WordNotFoundInDictionary("Слово должно состоять из " + wordLength + " букв");
         }
 
         if (!dictionary.containsWord(userWord.toLowerCase())) {
-            throw new WordNotFoundInDictionary("Слово отсутствует в словаре");
+            throw new GameNoSuchWordException("Слово отсутствует в словаре");
         }
     }
 
+    public String[] compareWords(String userWord)
+            throws WordNotFoundInDictionary, WrongWordException, GameNoSuchWordException {
 
-    public String[] compareWords(String userWord, String answer) {
-        try {
+        validate(userWord);
 
-            validate(userWord);
+        String[] result = new String[userWord.length()];
+        char[] userChars = userWord.toCharArray();
+        char[] answerChars = answer.toCharArray();
 
-            String[] result = new String[userWord.length()];
-            char[] userChars = userWord.toCharArray();
-            char[] answerChars = answer.toCharArray();
-
-            for (int i = 0; i < userWord.length(); i++) {
-                if (userChars[i] == answerChars[i]) {
-                    result[i] = "+";
-                } else if (answer.indexOf(userChars[i]) >= 0) {
-                    result[i] = "^";
-                } else {
-                    result[i] = "-";
-                }
+        for (int i = 0; i < userWord.length(); i++) {
+            if (userChars[i] == answerChars[i]) {
+                result[i] = "+";
+            } else if (answer.indexOf(userChars[i]) >= 0) {
+                result[i] = "^";
+            } else {
+                result[i] = "-";
             }
-
-            usedWords.add(userWord.toLowerCase());
-            usedResults.add(result);
-            steps--;
-
-            return result;
-
-        } catch (WordNotFoundInDictionary e) {
-            return new String[]{e.getMessage()};
         }
+
+        usedWords.add(userWord.toLowerCase());
+        usedResults.add(result);
+        steps--;
+
+        return result;
     }
 
+    public String getAnswer() {
+        return answer;
+    }
+
+    public void setAnswerForTests(String answer) {
+       this.answer = answer;
+    }
 
     public int getSteps() {
         return steps;
@@ -91,10 +84,14 @@ public class WordleGame {
     }
 
     public String suggestWord() {
-        List<String> availableVariants = dictionary.getWords();
+        List<String> availableVariants = new ArrayList<>(dictionary.getWords());
         availableVariants.removeAll(usedWords);
 
-        char[] correct = new char[answer.length()];
+        List<Character> correct = new ArrayList<>();
+        for (int i = 0; i < wordLength; i++) {
+            correct.add(null);
+        }
+
         Set<Character> present = new HashSet<>();
         Set<Character> absent = new HashSet<>();
 
@@ -106,7 +103,7 @@ public class WordleGame {
                 char c = guess.charAt(j);
                 switch (result[j]) {
                     case "+":
-                        correct[j] = c;
+                        correct.set(j, c);
                         break;
                     case "-":
                         absent.add(c);
@@ -115,7 +112,6 @@ public class WordleGame {
                         present.add(c);
                         break;
                 }
-
             }
         }
 
@@ -123,8 +119,10 @@ public class WordleGame {
         for (String word : availableVariants) {
             boolean ok = true;
 
-            for (int i = 0; i < correct.length; i++) {
-                if (correct[i] != 0 && word.charAt(i) != correct[i]) {
+            // проверка правильных букв
+            for (int i = 0; i < correct.size(); i++) {
+                Character expected = correct.get(i);
+                if (expected != null && word.charAt(i) != expected) {
                     ok = false;
                     break;
                 }
@@ -147,9 +145,7 @@ public class WordleGame {
             if (ok) {
                 possible.add(word);
             }
-
         }
-        if (possible.isEmpty()) return null;
-        else return possible.get(new Random().nextInt(possible.size()));
+        return possible.isEmpty() ? null : possible.get(new Random().nextInt(possible.size()));
     }
 }

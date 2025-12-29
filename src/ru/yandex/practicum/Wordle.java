@@ -7,39 +7,30 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
-/*
-в главном классе нам нужно:
-    создать лог-файл (он должен передаваться во все классы)
-    создать загрузчик словарей WordleDictionaryLoader
-    загрузить словарь WordleDictionary с помощью класса WordleDictionaryLoader
-    затем создать игру WordleGame и передать ей словарь
-    вызвать игровой метод в котором в цикле опрашивать пользователя и передавать информацию в игру
-    вывести состояние игры и конечный результат
- */
 public class Wordle {
+
+    public static final int WORD_LENGTH = 5;
+    public static final int MAX_STEPS = 6;
+
     public static void main(String[] args) {
         File logFile = new File("wordle.log");
-        PrintWriter logWriter = null;
 
-        try {
+        try (PrintWriter logWriter = new PrintWriter(new FileWriter(logFile, true), true);
+             Scanner scanner = new Scanner(System.in)) {
+
             if (!logFile.exists()) {
                 logFile.createNewFile();
             }
-            logWriter = new PrintWriter(new FileWriter(logFile, true), true);
 
             logWriter.println();
             logWriter.println("=== Игра Wordle началась ===");
             System.out.println("=== Игра Wordle началась ===");
+            
 
             WordleDictionaryLoader loader = new WordleDictionaryLoader(logWriter);
-            WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", 5, StandardCharsets.UTF_8);
+            WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", WORD_LENGTH, StandardCharsets.UTF_8);
 
-            String answer = dictionary.getRandomWord();
-            logWriter.println("Загаданное слово: " + answer);
-
-            int steps = 6;
-            WordleGame game = new WordleGame(dictionary, answer, steps, logWriter);
-            Scanner scanner = new Scanner(System.in);
+            WordleGame game = new WordleGame(dictionary, WORD_LENGTH, MAX_STEPS, logWriter);
 
             while (!game.isGameOver("")) {
                 System.out.print("Введите слово или нажмите Enter для подсказки: ");
@@ -57,39 +48,36 @@ public class Wordle {
                 }
 
                 try {
-                    game.validate(userWord);
-                    String[] result = game.compareWords(userWord, answer);
+                    String[] result = game.compareWords(userWord);
 
                     StringBuilder resultStr = new StringBuilder("Результат: ");
                     for (String s : result) {
                         resultStr.append(s);
                     }
 
-                    System.out.println(" ".repeat(36) + resultStr.toString());
+                    System.out.println(" ".repeat(36) + resultStr);
 
-                    if (game.isGameOver(userWord)) {
-                        if (answer.equalsIgnoreCase(userWord)) {
-                            ;
-                            System.out.println("Поздравляем, вы угадали слово!");
-                        } else {
-                            System.out.println("Вы проиграли, игра окончена. Загаданное слово: " + answer);
-                        }
+                    if (game.getAnswer().equalsIgnoreCase(userWord)) {
+                        System.out.println("Поздравляем, вы угадали слово!");
                         break;
                     }
+
                     System.out.println("Количество оставшихся ходов: " + game.getSteps());
-                } catch (WordNotFoundInDictionary e) {
+                } catch (WordNotFoundInDictionary | WrongWordException | GameNoSuchWordException e) {
                     String errorMessage = "Ошибка: " + e.getMessage();
                     logWriter.println(errorMessage + ": " + userWord);
                     System.out.println(errorMessage);
                     System.out.println();
                 }
             }
+
+            if (game.getSteps() == 0 && !game.getAnswer().equalsIgnoreCase("")) {
+                System.out.println("Вы проиграли, игра окончена. Загаданное слово: " + game.getAnswer());
+            }
+
         } catch (IOException e) {
             System.out.println("Ошибка при работе с log-файлом: " + e.getMessage());
-        } finally {
-            if (logWriter != null) {
-                logWriter.close();
-            }
         }
     }
+
 }
