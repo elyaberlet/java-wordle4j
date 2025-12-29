@@ -25,7 +25,6 @@ public class Wordle {
             logWriter.println();
             logWriter.println("=== Игра Wordle началась ===");
             System.out.println("=== Игра Wordle началась ===");
-            
 
             WordleDictionaryLoader loader = new WordleDictionaryLoader(logWriter);
             WordleDictionary dictionary = loader.loadFromFile("words_ru.txt", WORD_LENGTH, StandardCharsets.UTF_8);
